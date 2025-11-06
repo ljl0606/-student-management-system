@@ -1,16 +1,25 @@
 import re  # 引入正则表达式对用户输入进行限制
 import flask
 import pymysql  # 连接数据库
-from urllib.parse import quote as url_quote
 
 
 # 初始化
 app = flask.Flask(__name__)
 # 使用pymysql.connect方法连接本地mysql数据库
-db = pymysql.connect(host='127.0.0.1', port=3306, user='root',
+db = pymysql.connect(host='192.168.6.88', port=3306, user='root',
                      password='123456', database='student', charset='utf8')
 # 操作数据库，获取db下的cursor对象
 cursor = db.cursor()
+
+# 创建班级表
+cursor.execute("""CREATE TABLE IF NOT EXISTS classes (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+)""")
+db.commit()
+
 # 存储登陆用户的名字用户其它网页的显示
 users = []
 
@@ -168,6 +177,19 @@ def teacher():
         sql_list = "select * from students_decision_infos"
         cursor.execute(sql_list)
         results = cursor.fetchall()
+        # 获取所有教师信息
+        sql_teachers = "select teacher_id from techer_class_infos"
+        cursor.execute(sql_teachers)
+        teachers = cursor.fetchall()
+        # 获取所有课程信息
+        sql_courses = "select * from techer_class_infos"
+        cursor.execute(sql_courses)
+        courses = cursor.fetchall()
+        # 构建教师和课程的对应关系
+        teacher_course_map = {}
+        for course in courses:
+            teacher_id = course[0]
+            teacher_course_map[teacher_id] = course[1:]
     if flask.request.method == 'POST':
         # 获取输入的学生选课信息
         student_id = flask.request.values.get("student_id", "")
@@ -195,7 +217,7 @@ def teacher():
         sql_list = "select * from students_decision_infos"
         cursor.execute(sql_list)
         results = cursor.fetchall()
-    return flask.render_template('teacher.html', insert_result=insert_result, user_info=user_info, results=results)
+    return flask.render_template('teacher.html', insert_result=insert_result, user_info=user_info, results=results, teachers=teachers, teacher_course_map=teacher_course_map)
 
 
 @app.route('/grade', methods=['GET', "POST"])
@@ -519,6 +541,134 @@ def graduation():
                 pass
 
     return flask.render_template('graduation.html', user_info=user_info, query_result=query_result, results=results)
+
+
+@app.route('/classes', methods=['GET', 'POST'])
+def classes():
+    # login session值
+    if flask.session.get("login", "") == '':
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+    query_result = ''
+    results = ''
+
+    # 当用户登陆有存储信息时显示用户名,否则为空
+    if users:
+        for user in users:
+            user_info = user
+    else:
+        user_info = ''
+
+    if flask.request.method == 'GET':
+        sql_list = "select * from classes"
+        cursor.execute(sql_list)
+        results = cursor.fetchall()
+
+    if flask.request.method == 'POST':
+        query = flask.request.values.get('query')
+        if query:
+            sql = "select * from classes where name like %s"
+            cursor.execute(sql, (f"%{query}%",))
+            results = cursor.fetchall()
+            if results:
+                query_result = '查询成功!'
+            else:
+                query_result = '查询失败!'
+        else:
+            sql_list = "select * from classes"
+            cursor.execute(sql_list)
+            results = cursor.fetchall()
+
+    return flask.render_template('classes.html', user_info=user_info, query_result=query_result, results=results)
+
+
+@app.route('/classes/add', methods=['GET', 'POST'])
+def add_class():
+    # login session值
+    if flask.session.get("login", "") == '':
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+    insert_result = ''
+
+    # 当用户登陆有存储信息时显示用户名,否则为空
+    if users:
+        for user in users:
+            user_info = user
+    else:
+        user_info = ''
+
+    if flask.request.method == 'POST':
+        class_name = flask.request.values.get('class_name', "")
+        if class_name:
+            try:
+                sql = "insert into classes(name) values(%s)"
+                cursor.execute(sql, (class_name,))
+                db.commit()
+                insert_result = "成功新增班级"
+                return flask.redirect('/classes')
+            except Exception as err:
+                print(err)
+                insert_result = "新增班级失败"
+        else:
+            insert_result = "班级名称不能为空"
+
+    return flask.render_template('add_class.html', user_info=user_info, insert_result=insert_result)
+
+
+@app.route('/classes/edit/<int:class_id>', methods=['GET', 'POST'])
+def edit_class(class_id):
+    # login session值
+    if flask.session.get("login", "") == '':
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+    update_result = ''
+    class_info = None
+
+    # 当用户登陆有存储信息时显示用户名,否则为空
+    if users:
+        for user in users:
+            user_info = user
+    else:
+        user_info = ''
+
+    # 获取班级信息
+    sql = "select * from classes where id = %s"
+    cursor.execute(sql, (class_id,))
+    class_info = cursor.fetchone()
+
+    if flask.request.method == 'POST':
+        class_name = flask.request.values.get('class_name', "")
+        if class_name:
+            try:
+                sql = "update classes set name = %s where id = %s"
+                cursor.execute(sql, (class_name, class_id))
+                db.commit()
+                update_result = "成功更新班级"
+                return flask.redirect('/classes')
+            except Exception as err:
+                print(err)
+                update_result = "更新班级失败"
+        else:
+            update_result = "班级名称不能为空"
+
+    return flask.render_template('edit_class.html', user_info=user_info, update_result=update_result, class_info=class_info)
+
+
+@app.route('/classes/delete/<int:class_id>', methods=['GET'])
+def delete_class(class_id):
+    # login session值
+    if flask.session.get("login", "") == '':
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+
+    try:
+        sql = "delete from classes where id = %s"
+        cursor.execute(sql, (class_id,))
+        db.commit()
+    except Exception as err:
+        print(err)
+
+    return flask.redirect('/classes')
 
 
 # 启动服务器
