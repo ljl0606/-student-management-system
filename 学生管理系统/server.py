@@ -366,70 +366,105 @@ def grade_infos():
         print('用户还没有登陆!即将重定向!')
         return flask.redirect('/')
     query_result = ''
-    results = ''
     # 当用户登陆有存储信息时显示用户名,否则为空
     if users:
         for user in users:
             user_info = user
     else:
         user_info = ''
-    # 获取下拉框的数据
+    
+    # 从classes表中获取所有班级
+    sql_get_classes = "SELECT id, name FROM classes ORDER BY name"
+    cursor.execute(sql_get_classes)
+    classes = cursor.fetchall()
+    
+    # 处理分页
+    page = flask.request.args.get('page', 1, type=int)
+    per_page = 10  # 每页显示10条数据
+    offset = (page - 1) * per_page
+    
+    # 处理搜索条件
+    student_id = ''
+    student_name = ''
+    student_class = ''
+    
     if flask.request.method == 'POST':
-        select = flask.request.form.get('selected_one')
-        query = flask.request.values.get('query')
-        print(select, query)
-        # 判断不同输入对数据表进行不同的处理
-        if select == '学号':
-            try:
-                sql = "select * from grade_infos where student_id = %s; "
-                cursor.execute(sql, query)
-                results = cursor.fetchall()
-                if results:
-                    query_result = '查询成功!'
-                else:
-                    query_result = '查询失败!'
-            except Exception as err:
-                print(err)
-                pass
-        if select == '姓名':
-            try:
-                sql = "select * from grade_infos where student_id in(select student_id from students_infos where student_name=%s);"
-                cursor.execute(sql, query)
-                results = cursor.fetchall()
-                if results:
-                    query_result = '查询成功!'
-                else:
-                    query_result = '查询失败!'
-            except Exception as err:
-                print(err)
-                pass
-
-        if select == '课程名称':
-            try:
-                sql = "select * from grade_infos where student_class_id in(select student_class_id from students_infos where student_class_id=%s);"
-                cursor.execute(sql, query)
-                results = cursor.fetchall()
-                if results:
-                    query_result = '查询成功!'
-                else:
-                    query_result = '查询失败!'
-            except Exception as err:
-                print(err)
-                pass
-
-        if select == "所在班级":
-            try:
-                sql = "select * from grade_infos where student_class_id in(select student_class_id from students_infos where student_class=%s);"
-                cursor.execute(sql, query)
-                results = cursor.fetchall()
-                if results:
-                    query_result = '查询成功!'
-                else:
-                    query_result = '查询失败!'
-            except Exception as err:
-                print(err)
-                pass
-    return flask.render_template('grade_infos.html', query_result=query_result, user_info=user_info, results=results)
+        # 获取搜索条件
+        student_id = flask.request.values.get("student_id", "")
+        student_name = flask.request.values.get("student_name", "")
+        student_class = flask.request.values.get("student_class", "")
+        
+        # 构建搜索SQL
+        sql_search = "SELECT * FROM grade_infos WHERE 1=1"
+        params = []
+        
+        if student_id:
+            sql_search += " AND student_id LIKE %s"
+            params.append(f"%{student_id}%")
+        
+        if student_name:
+            sql_search += " AND student_id IN (SELECT student_id FROM students_infos WHERE student_name LIKE %s)"
+            params.append(f"%{student_name}%")
+        
+        if student_class:
+            sql_search += " AND student_id IN (SELECT student_id FROM students_infos WHERE student_class = %s)"
+            params.append(student_class)
+        
+        # 执行搜索并分页
+        sql_search += " LIMIT %s OFFSET %s"
+        params.extend([per_page, offset])
+        
+        cursor.execute(sql_search, params)
+        results = cursor.fetchall()
+        
+        # 获取总记录数
+        sql_count = "SELECT COUNT(*) FROM grade_infos WHERE 1=1"
+        count_params = []
+        
+        if student_id:
+            sql_count += " AND student_id LIKE %s"
+            count_params.append(f"%{student_id}%")
+        
+        if student_name:
+            sql_count += " AND student_id IN (SELECT student_id FROM students_infos WHERE student_name LIKE %s)"
+            count_params.append(f"%{student_name}%")
+        
+        if student_class:
+            sql_count += " AND student_id IN (SELECT student_id FROM students_infos WHERE student_class = %s)"
+            count_params.append(student_class)
+        
+        cursor.execute(sql_count, count_params)
+        total = cursor.fetchone()[0]
+        
+        query_result = f"搜索到 {total} 条记录"
+    else:
+        # GET方法时显示所有数据并分页
+        sql_list = "SELECT * FROM grade_infos LIMIT %s OFFSET %s"
+        cursor.execute(sql_list, (per_page, offset))
+        results = cursor.fetchall()
+        
+        # 获取总记录数
+        sql_count = "SELECT COUNT(*) FROM grade_infos"
+        cursor.execute(sql_count)
+        total = cursor.fetchone()[0]
+    
+    # 计算总页数
+    total_pages = (total + per_page - 1) // per_page
+    
+    return flask.render_template(
+        'grade_infos.html', 
+        query_result=query_result, 
+        user_info=user_info, 
+        results=results, 
+        classes=classes,
+        student_id=student_id,
+        student_name=student_name,
+        student_class=student_class,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages,
+        total=total
+    )
 
 
 @app.route('/adminstator', methods=['GET', "POST"])
