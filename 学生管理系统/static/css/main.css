@@ -71,20 +71,15 @@ a {
     right: 24px;
 }
 
-.leftside {
-    float: left;
-    background-color: rgb(245, 245, 245);
-    width: 100%; /* 使用百分比宽度 */
-}
-
-.leftside ul {
-    height: auto; /* 自适应高度 */
-}
+/* 删除重复的.leftside样式定义 */
 
 /* 添加媒体查询来适应不同的屏幕尺寸 */
 @media (max-width: 768px) {
     .leftside {
         width: 100%; /* 修改为合适的宽度 */
+    }
+    .container-fluid {
+        width: 100%;
     }
 }
 
@@ -116,7 +111,8 @@ a {
 
 /* 全局容器样式 */
 .container-fluid {
-    width: 100%;
+    float: right;
+    width: calc(100% - 200px);
     height: 100vh; /* 使用视口高度作为高度 */
 }
 
