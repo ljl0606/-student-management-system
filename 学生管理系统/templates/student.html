@@ -14,13 +14,13 @@
 <body>
 <div class="container">
     <div class="header">
-        <span class="left">学 生 信 息 录 入</span>
+        <span class="left">学 生 信 息 管 理</span>
         <span class="right">你 好，{{user_info}}管 理 员!</span>
         <span class="right_right"><a href="/">退出登陆</a></span>
     </div>
     <div class="leftside">
         <ul>
-            <li class="first"><a href="/student">学生信息录入</a></li>
+            <li class="first"><a href="/student">学生信息管理</a></li>
             <li><a href ="/updata_student">学生信息修改</a></li>
             <li><a href="/teacher_class">老师开设课程查看</a></li>
             <li><a href="/teacher">选课信息录入</a></li>
@@ -32,7 +32,7 @@
         </ul>
     </div>
     <div class="container-fluid">
-        <h1 class="sub-header">学 生 信 息 录 入 系 统</h1>&nbsp;&nbsp;
+        <h1 class="sub-header">学 生 信 息 管 理 系 统</h1>&nbsp;&nbsp;
         <hr>
         <div class="row">
             <div class="col-md-12">
@@ -76,6 +76,7 @@
             <th>班级</th>
             <th>姓名</th>
             <th>性别</th>
+            <th>操作</th>
         </tr>
     </thead>
     <tbody>
@@ -85,6 +86,10 @@
             <td>{{result[1]}}</td>
             <td>{{result[2]}}</td>
             <td>{{result[3]}}</td>
+            <td>
+                <a href="/edit_student/{{result[0]}}" class="btn btn-primary btn-sm">编辑</a>
+                <a href="/delete_student/{{result[0]}}" class="btn btn-danger btn-sm">删除</a>
+            </td>
         </tr>
         {% endfor %}
     </tbody>
