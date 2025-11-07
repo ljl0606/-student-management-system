@@ -13,40 +13,6 @@ cursor = db.cursor()
 # 存储登陆用户的名字用户其它网页的显示
 users = []
 
-# 将现有学生班级信息中的班级这列数据汇总并写入classes表中
-try:
-    # 创建classes表（如果不存在）
-    sql_create_classes = """
-    CREATE TABLE IF NOT EXISTS classes (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-    """
-    cursor.execute(sql_create_classes)
-    
-    # 从students_infos表中查询所有不同的班级名称
-    sql_get_classes = "SELECT DISTINCT student_class FROM students_infos WHERE student_class IS NOT NULL AND student_class != ''"
-    cursor.execute(sql_get_classes)
-    classes = cursor.fetchall()
-    
-    # 将班级名称插入到classes表中
-    for cls in classes:
-        class_name = cls[0]
-        # 检查班级是否已经存在
-        sql_check_class = "SELECT id FROM classes WHERE name = %s"
-        cursor.execute(sql_check_class, (class_name,))
-        if not cursor.fetchone():
-            sql_insert_class = "INSERT INTO classes (name) VALUES (%s)"
-            cursor.execute(sql_insert_class, (class_name,))
-    
-    db.commit()
-    print("班级数据已成功导入到classes表中")
-except Exception as e:
-    print(f"导入班级数据失败: {e}")
-    db.rollback()
-
 
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -667,6 +633,133 @@ def graduation():
                 pass
 
     return flask.render_template('graduation.html', user_info=user_info, query_result=query_result, results=results)
+
+@app.route('/classes', methods=['GET', 'POST'])
+def classes():
+    # login session值
+    if flask.session.get("login", "") == '':
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+    query_result = ''
+    results = ''
+
+    # 当用户登陆有存储信息时显示用户名,否则为空
+    if users:
+        for user in users:
+            user_info = user
+    else:
+        user_info = ''
+
+    if flask.request.method == 'GET':
+        sql_list = "select * from classes"
+        cursor.execute(sql_list)
+        results = cursor.fetchall()
+
+    if flask.request.method == 'POST':
+        query = flask.request.values.get('query')
+        if query:
+            sql = "select * from classes where name like %s"
+            cursor.execute(sql, (f"%{query}%",))
+            results = cursor.fetchall()
+            if results:
+                query_result = '查询成功!'
+            else:
+                query_result = '查询失败!'
+        else:
+            sql_list = "select * from classes"
+            cursor.execute(sql_list)
+            results = cursor.fetchall()
+
+    return flask.render_template('classes.html', user_info=user_info, query_result=query_result, results=results)
+
+
+@app.route('/classes/add', methods=['GET', 'POST'])
+def add_class():
+    # login session值
+    if flask.session.get("login", "") == '':
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+    insert_result = ''
+
+    # 当用户登陆有存储信息时显示用户名,否则为空
+    if users:
+        for user in users:
+            user_info = user
+    else:
+        user_info = ''
+
+    if flask.request.method == 'POST':
+        class_name = flask.request.values.get('class_name', "")
+        if class_name:
+            try:
+                sql = "insert into classes(name) values(%s)"
+                cursor.execute(sql, (class_name,))
+                db.commit()
+                insert_result = "成功新增班级"
+                return flask.redirect('/classes')
+            except Exception as err:
+                print(err)
+                insert_result = "新增班级失败"
+        else:
+            insert_result = "班级名称不能为空"
+
+    return flask.render_template('add_class.html', user_info=user_info, insert_result=insert_result)
+
+
+@app.route('/classes/edit/<int:class_id>', methods=['GET', 'POST'])
+def edit_class(class_id):
+    # login session值
+    if flask.session.get("login", "") == '':
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+    update_result = ''
+    class_info = None
+
+    # 当用户登陆有存储信息时显示用户名,否则为空
+    if users:
+        for user in users:
+            user_info = user
+    else:
+        user_info = ''
+
+    # 获取班级信息
+    sql = "select * from classes where id = %s"
+    cursor.execute(sql, (class_id,))
+    class_info = cursor.fetchone()
+
+    if flask.request.method == 'POST':
+        class_name = flask.request.values.get('class_name', "")
+        if class_name:
+            try:
+                sql = "update classes set name = %s where id = %s"
+                cursor.execute(sql, (class_name, class_id))
+                db.commit()
+                update_result = "成功更新班级"
+                return flask.redirect('/classes')
+            except Exception as err:
+                print(err)
+                update_result = "更新班级失败"
+        else:
+            update_result = "班级名称不能为空"
+
+    return flask.render_template('edit_class.html', user_info=user_info, update_result=update_result, class_info=class_info)
+
+
+@app.route('/classes/delete/<int:class_id>', methods=['GET'])
+def delete_class(class_id):
+    # login session值
+    if flask.session.get("login", "") == '':
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+
+    try:
+        sql = "delete from classes where id = %s"
+        cursor.execute(sql, (class_id,))
+        db.commit()
+    except Exception as err:
+        print(err)
+
+    return flask.redirect('/classes')
 
 
 # 启动服务器
