@@ -10,18 +10,42 @@ db = pymysql.connect(host='192.168.6.88', port=3306, user='root',
                      password='123456', database='student', charset='utf8')
 # 操作数据库，获取db下的cursor对象
 cursor = db.cursor()
-
-# 创建班级表
-cursor.execute("""CREATE TABLE IF NOT EXISTS classes (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(100) NOT NULL,
-    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)""")
-db.commit()
-
 # 存储登陆用户的名字用户其它网页的显示
 users = []
+
+# 将现有学生班级信息中的班级这列数据汇总并写入classes表中
+try:
+    # 创建classes表（如果不存在）
+    sql_create_classes = """
+    CREATE TABLE IF NOT EXISTS classes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    """
+    cursor.execute(sql_create_classes)
+    
+    # 从students_infos表中查询所有不同的班级名称
+    sql_get_classes = "SELECT DISTINCT student_class FROM students_infos WHERE student_class IS NOT NULL AND student_class != ''"
+    cursor.execute(sql_get_classes)
+    classes = cursor.fetchall()
+    
+    # 将班级名称插入到classes表中
+    for cls in classes:
+        class_name = cls[0]
+        # 检查班级是否已经存在
+        sql_check_class = "SELECT id FROM classes WHERE name = %s"
+        cursor.execute(sql_check_class, (class_name,))
+        if not cursor.fetchone():
+            sql_insert_class = "INSERT INTO classes (name) VALUES (%s)"
+            cursor.execute(sql_insert_class, (class_name,))
+    
+    db.commit()
+    print("班级数据已成功导入到classes表中")
+except Exception as e:
+    print(f"导入班级数据失败: {e}")
+    db.rollback()
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -61,50 +85,152 @@ def student():
         # 用户没有登陆
         print('用户还没有登陆!即将重定向!')
         return flask.redirect('/')
-    insert_result = ''
+    
     # 当用户登陆有存储信息时显示用户名,否则为空
     if users:
         for user in users:
             user_info = user
     else:
         user_info = ''
-    # 获取显示管理员数据信息(GET方法的时候显示数据)
-    if flask.request.method == 'GET':
-        sql_list = "select * from students_infos"
-        cursor.execute(sql_list)
-        results = cursor.fetchall()
+    
+    # 从classes表中获取所有班级
+    sql_get_classes = "SELECT id, name FROM classes ORDER BY name"
+    cursor.execute(sql_get_classes)
+    classes = cursor.fetchall()
+    
+    # 处理分页
+    page = flask.request.args.get('page', 1, type=int)
+    per_page = 10  # 每页显示10条数据
+    offset = (page - 1) * per_page
+    
+    # 处理搜索
+    search_result = ''
+    student_id = ''
+    student_class = ''
+    student_name = ''
+    student_sex = ''
+    
     if flask.request.method == 'POST':
-        # 获取输入的学生信息
+        # 获取搜索条件
         student_id = flask.request.values.get("student_id", "")
         student_class = flask.request.values.get("student_class", "")
         student_name = flask.request.values.get("student_name", "")
         student_sex = flask.request.values.get("student_sex", "")
-
-        # 检查输入是否为空
-        if not all([student_id, student_class, student_name, student_sex]):
-            insert_result = "输入的学生信息不能为空"
-        else:
-            try:
-                # 信息存入数据库
-                sql = "create table if not exists students_infos(student_id varchar(10) primary key,student_class varchar(100),student_name varchar(32),student_sex VARCHAR(4));"
-                cursor.execute(sql)
-                sql_1 = "insert into students_infos(student_id, student_class, student_name, student_sex) values(%s, %s, %s, %s)"
-                cursor.execute(sql_1, (student_id, student_class, student_name, student_sex))
-                insert_result = "成功存入一条学生信息"
-                print(insert_result)
-            except Exception as err:
-                print(err)
-                insert_result = "学生信息插入失败"
-                print(insert_result)
-                pass
-            db.commit()
-
-        # POST方法时显示数据
-        sql_list = "select * from students_infos"
-        cursor.execute(sql_list)
+        
+        # 构建搜索SQL
+        sql_search = "SELECT * FROM students_infos WHERE 1=1"
+        params = []
+        
+        if student_id:
+            sql_search += " AND student_id LIKE %s"
+            params.append(f"%{student_id}%")
+        
+        if student_class:
+            sql_search += " AND student_class = %s"
+            params.append(student_class)
+        
+        if student_name:
+            sql_search += " AND student_name LIKE %s"
+            params.append(f"%{student_name}%")
+        
+        if student_sex:
+            sql_search += " AND student_sex = %s"
+            params.append(student_sex)
+        
+        # 执行搜索
+        sql_search += " LIMIT %s OFFSET %s"
+        params.extend([per_page, offset])
+        
+        cursor.execute(sql_search, params)
         results = cursor.fetchall()
+        
+        # 获取总记录数
+        sql_count = "SELECT COUNT(*) FROM students_infos WHERE 1=1"
+        count_params = []
+        
+        if student_id:
+            sql_count += " AND student_id LIKE %s"
+            count_params.append(f"%{student_id}%")
+        
+        if student_class:
+            sql_count += " AND student_class = %s"
+            count_params.append(student_class)
+        
+        if student_name:
+            sql_count += " AND student_name LIKE %s"
+            count_params.append(f"%{student_name}%")
+        
+        if student_sex:
+            sql_count += " AND student_sex = %s"
+            count_params.append(student_sex)
+        
+        cursor.execute(sql_count, count_params)
+        total = cursor.fetchone()[0]
+        
+        search_result = f"搜索到 {total} 条记录"
+    else:
+        # GET方法时显示所有数据
+        sql_list = "SELECT * FROM students_infos LIMIT %s OFFSET %s"
+        cursor.execute(sql_list, (per_page, offset))
+        results = cursor.fetchall()
+        
+        # 获取总记录数
+        sql_count = "SELECT COUNT(*) FROM students_infos"
+        cursor.execute(sql_count)
+        total = cursor.fetchone()[0]
+    
+    # 计算总页数
+    total_pages = (total + per_page - 1) // per_page
+    
+    return flask.render_template(
+        'student.html', 
+        user_info=user_info, 
+        results=results, 
+        classes=classes, 
+        student_id=student_id, 
+        student_class=student_class, 
+        student_name=student_name, 
+        student_sex=student_sex, 
+        search_result=search_result, 
+        page=page, 
+        per_page=per_page, 
+        total_pages=total_pages, 
+        total=total
+    )
 
-    return flask.render_template('student.html', insert_result=insert_result, user_info=user_info, results=results)
+
+@app.route('/add_student', methods=['POST'])
+def add_student():
+    # login session值
+    if flask.session.get("login", "") == '':
+        # 用户没有登陆
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+    
+    # 获取输入的学生信息
+    student_id = flask.request.values.get("student_id", "")
+    student_class = flask.request.values.get("student_class", "")
+    student_name = flask.request.values.get("student_name", "")
+    student_sex = flask.request.values.get("student_sex", "")
+
+    # 检查输入是否为空
+    if not all([student_id, student_class, student_name, student_sex]):
+        return flask.redirect(flask.url_for('student', error="输入的学生信息不能为空"))
+    else:
+        try:
+            # 信息存入数据库
+            sql = "create table if not exists students_infos(student_id varchar(10) primary key,student_class varchar(100),student_name varchar(32),student_sex VARCHAR(4));"
+            cursor.execute(sql)
+            sql_1 = "insert into students_infos(student_id, student_class, student_name, student_sex) values(%s, %s, %s, %s)"
+            cursor.execute(sql_1, (student_id, student_class, student_name, student_sex))
+            print("成功存入一条学生信息")
+        except Exception as err:
+            print(err)
+            print("学生信息插入失败")
+            pass
+        db.commit()
+
+    return flask.redirect(flask.url_for('student'))
 
 
 @app.route('/teacher_class', methods=['GET', "POST"])
@@ -541,134 +667,6 @@ def graduation():
                 pass
 
     return flask.render_template('graduation.html', user_info=user_info, query_result=query_result, results=results)
-
-
-@app.route('/classes', methods=['GET', 'POST'])
-def classes():
-    # login session值
-    if flask.session.get("login", "") == '':
-        print('用户还没有登陆!即将重定向!')
-        return flask.redirect('/')
-    query_result = ''
-    results = ''
-
-    # 当用户登陆有存储信息时显示用户名,否则为空
-    if users:
-        for user in users:
-            user_info = user
-    else:
-        user_info = ''
-
-    if flask.request.method == 'GET':
-        sql_list = "select * from classes"
-        cursor.execute(sql_list)
-        results = cursor.fetchall()
-
-    if flask.request.method == 'POST':
-        query = flask.request.values.get('query')
-        if query:
-            sql = "select * from classes where name like %s"
-            cursor.execute(sql, (f"%{query}%",))
-            results = cursor.fetchall()
-            if results:
-                query_result = '查询成功!'
-            else:
-                query_result = '查询失败!'
-        else:
-            sql_list = "select * from classes"
-            cursor.execute(sql_list)
-            results = cursor.fetchall()
-
-    return flask.render_template('classes.html', user_info=user_info, query_result=query_result, results=results)
-
-
-@app.route('/classes/add', methods=['GET', 'POST'])
-def add_class():
-    # login session值
-    if flask.session.get("login", "") == '':
-        print('用户还没有登陆!即将重定向!')
-        return flask.redirect('/')
-    insert_result = ''
-
-    # 当用户登陆有存储信息时显示用户名,否则为空
-    if users:
-        for user in users:
-            user_info = user
-    else:
-        user_info = ''
-
-    if flask.request.method == 'POST':
-        class_name = flask.request.values.get('class_name', "")
-        if class_name:
-            try:
-                sql = "insert into classes(name) values(%s)"
-                cursor.execute(sql, (class_name,))
-                db.commit()
-                insert_result = "成功新增班级"
-                return flask.redirect('/classes')
-            except Exception as err:
-                print(err)
-                insert_result = "新增班级失败"
-        else:
-            insert_result = "班级名称不能为空"
-
-    return flask.render_template('add_class.html', user_info=user_info, insert_result=insert_result)
-
-
-@app.route('/classes/edit/<int:class_id>', methods=['GET', 'POST'])
-def edit_class(class_id):
-    # login session值
-    if flask.session.get("login", "") == '':
-        print('用户还没有登陆!即将重定向!')
-        return flask.redirect('/')
-    update_result = ''
-    class_info = None
-
-    # 当用户登陆有存储信息时显示用户名,否则为空
-    if users:
-        for user in users:
-            user_info = user
-    else:
-        user_info = ''
-
-    # 获取班级信息
-    sql = "select * from classes where id = %s"
-    cursor.execute(sql, (class_id,))
-    class_info = cursor.fetchone()
-
-    if flask.request.method == 'POST':
-        class_name = flask.request.values.get('class_name', "")
-        if class_name:
-            try:
-                sql = "update classes set name = %s where id = %s"
-                cursor.execute(sql, (class_name, class_id))
-                db.commit()
-                update_result = "成功更新班级"
-                return flask.redirect('/classes')
-            except Exception as err:
-                print(err)
-                update_result = "更新班级失败"
-        else:
-            update_result = "班级名称不能为空"
-
-    return flask.render_template('edit_class.html', user_info=user_info, update_result=update_result, class_info=class_info)
-
-
-@app.route('/classes/delete/<int:class_id>', methods=['GET'])
-def delete_class(class_id):
-    # login session值
-    if flask.session.get("login", "") == '':
-        print('用户还没有登陆!即将重定向!')
-        return flask.redirect('/')
-
-    try:
-        sql = "delete from classes where id = %s"
-        cursor.execute(sql, (class_id,))
-        db.commit()
-    except Exception as err:
-        print(err)
-
-    return flask.redirect('/classes')
 
 
 # 启动服务器
