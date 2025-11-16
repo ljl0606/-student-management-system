@@ -71,39 +71,38 @@ def student():
     
     # 处理搜索
     search_result = ''
-    student_id = ''
-    student_class = ''
-    student_name = ''
-    student_sex = ''
+    # 获取搜索条件，无论是GET还是POST请求
+    student_id = flask.request.values.get("student_id", "")
+    student_class = flask.request.values.get("student_class", "")
+    student_name = flask.request.values.get("student_name", "")
+    student_sex = flask.request.values.get("student_sex", "")
     
-    if flask.request.method == 'POST':
-        # 获取搜索条件
-        student_id = flask.request.values.get("student_id", "")
-        student_class = flask.request.values.get("student_class", "")
-        student_name = flask.request.values.get("student_name", "")
-        student_sex = flask.request.values.get("student_sex", "")
-        
-        # 构建搜索SQL
-        sql_search = "SELECT * FROM students_infos WHERE 1=1"
-        params = []
-        
-        if student_id:
-            sql_search += " AND student_id LIKE %s"
-            params.append(f"%{student_id}%")
-        
-        if student_class:
-            sql_search += " AND student_class = %s"
-            params.append(student_class)
-        
-        if student_name:
-            sql_search += " AND student_name LIKE %s"
-            params.append(f"%{student_name}%")
-        
-        if student_sex:
-            sql_search += " AND student_sex = %s"
-            params.append(student_sex)
-        
-        # 执行搜索
+    # 检查是否有任何搜索条件
+    has_search = student_id or student_class or student_name or student_sex
+    
+    # 构建搜索SQL
+    sql_search = "SELECT * FROM students_infos WHERE 1=1"
+    params = []
+    
+    if student_id:
+        sql_search += " AND student_id LIKE %s"
+        params.append(f"%{student_id}%")
+    
+    if student_class:
+        sql_search += " AND student_class = %s"
+        params.append(student_class)
+    
+    if student_name:
+        sql_search += " AND student_name LIKE %s"
+        params.append(f"%{student_name}%")
+    
+    if student_sex:
+        sql_search += " AND student_sex = %s"
+        params.append(student_sex)
+    
+    # 执行搜索或显示所有数据
+    if has_search:
+        # 有搜索条件时执行搜索
         sql_search += " LIMIT %s OFFSET %s"
         params.extend([per_page, offset])
         
@@ -129,13 +128,13 @@ def student():
         if student_sex:
             sql_count += " AND student_sex = %s"
             count_params.append(student_sex)
-        
+            
         cursor.execute(sql_count, count_params)
         total = cursor.fetchone()[0]
         
         search_result = f"搜索到 {total} 条记录"
     else:
-        # GET方法时显示所有数据
+        # 没有搜索条件时显示所有数据
         sql_list = "SELECT * FROM students_infos LIMIT %s OFFSET %s"
         cursor.execute(sql_list, (per_page, offset))
         results = cursor.fetchall()
