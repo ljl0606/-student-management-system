@@ -206,6 +206,91 @@ def add_student():
 
     return flask.redirect(flask.url_for('student'))
 
+@app.route('/edit_student/<student_id>', methods=['GET', 'POST'])
+def edit_student(student_id):
+    # login session值
+    if flask.session.get("login", "") == '':
+        # 用户没有登陆
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+    
+    # 当用户登陆有存储信息时显示用户名,否则为空
+    if users:
+        for user in users:
+            user_info = user
+    else:
+        user_info = ''
+    
+    # 从classes表中获取所有班级
+    sql_get_classes = "SELECT id, name FROM classes ORDER BY name"
+    cursor.execute(sql_get_classes)
+    classes = cursor.fetchall()
+    
+    if flask.request.method == 'GET':
+        # 获取要编辑的学生信息
+        sql_get_student = "SELECT * FROM students_infos WHERE student_id = %s"
+        cursor.execute(sql_get_student, (student_id,))
+        student = cursor.fetchone()
+        return flask.render_template('edit_student.html', user_info=user_info, student=student, classes=classes)
+    elif flask.request.method == 'POST':
+        # 获取修改后的学生信息
+        new_id = flask.request.values.get("student_id", "").strip()
+        new_class = flask.request.values.get("student_class", "").strip()
+        new_name = flask.request.values.get("student_name", "").strip()
+        new_sex = flask.request.values.get("student_sex", "").strip()
+        
+        try:
+            # 检查学号是否已存在（如果修改了学号）
+            if new_id != student_id:
+                sql_check = "SELECT student_id FROM students_infos WHERE student_id = %s"
+                cursor.execute(sql_check, (new_id,))
+                existing_student = cursor.fetchone()
+                
+                if existing_student:
+                    # 重新获取学生信息和班级列表，以便在编辑页显示
+                    sql_get_student = "SELECT * FROM students_infos WHERE student_id = %s"
+                    cursor.execute(sql_get_student, (student_id,))
+                    student = cursor.fetchone()
+                    sql_get_classes = "SELECT id, name FROM classes ORDER BY name"
+                    cursor.execute(sql_get_classes)
+                    classes = cursor.fetchall()
+                    return flask.render_template('edit_student.html', user_info=user_info, student=student, classes=classes, error="学号已存在，请输入新的学号")
+            
+            # 更新学生信息
+            sql_update = "UPDATE students_infos SET student_id = %s, student_class = %s, student_name = %s, student_sex = %s WHERE student_id = %s"
+            cursor.execute(sql_update, (new_id, new_class, new_name, new_sex, student_id))
+            db.commit()
+            print("成功修改学生信息")
+        except Exception as err:
+            print(err)
+            print("学生信息修改失败")
+            db.rollback()
+            return flask.redirect(flask.url_for('student', error="学生信息修改失败，请检查输入"))
+        
+        return flask.redirect(flask.url_for('student'))
+
+@app.route('/delete_student/<student_id>', methods=['GET'])
+def delete_student(student_id):
+    # login session值
+    if flask.session.get("login", "") == '':
+        # 用户没有登陆
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+    
+    try:
+        # 删除学生信息
+        sql_delete = "DELETE FROM students_infos WHERE student_id = %s"
+        cursor.execute(sql_delete, (student_id,))
+        db.commit()
+        print("成功删除学生信息")
+    except Exception as err:
+        print(err)
+        print("学生信息删除失败")
+        db.rollback()
+        return flask.redirect(flask.url_for('student', error="学生信息删除失败，请检查输入"))
+    
+    return flask.redirect(flask.url_for('student'))
+
 
 @app.route('/teacher_class', methods=['GET', "POST"])
 def teacher_class():

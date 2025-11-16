@@ -21,7 +21,6 @@
     <div class="leftside">
         <ul>
             <li class="first"><a href="/student">学生信息录入</a></li>
-            <li><a href ="/updata_student">学生信息修改</a></li>
             <li><a href="/teacher_class">老师开设课程查看</a></li>
             <li><a href="/teacher">选课信息录入</a></li>
             <li><a href="/grade">成绩信息录入</a></li>
@@ -79,6 +78,7 @@
             <th>班级</th>
             <th>姓名</th>
             <th>性别</th>
+            <th>操作</th>
         </tr>
     </thead>
     <tbody>
@@ -88,6 +88,10 @@
             <td>{{result[1]}}</td>
             <td>{{result[2]}}</td>
             <td>{{result[3]}}</td>
+            <td>
+                <a href="/edit_student/{{result[0]}}" class="btn btn-sm btn-primary">编辑</a>
+                <a href="/delete_student/{{result[0]}}" class="btn btn-sm btn-danger">删除</a>
+            </td>
         </tr>
         {% endfor %}
     </tbody>
