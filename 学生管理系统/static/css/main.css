@@ -116,6 +116,19 @@ a {
     height: 100vh; /* 使用视口高度作为高度 */
 }
 
+/* 搜索表单样式 */
+.form-inline .form-group {
+    margin-right: 15px;
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+.form-inline button {
+    margin-right: 15px;
+    margin-bottom: 10px;
+    vertical-align: top;
+}
+
 /* 表格响应式样式 */
 .table-responsive {
     margin-top: 10px;
@@ -129,4 +142,68 @@ a {
 /* 表头单元格样式 */
 thead tr th {
     background-color: white;
+}
+/* 分页容器样式 */
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+/* 分页列表样式 */
+.pagination {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 分页项样式 */
+.pagination li {
+    display: inline-block;
+    margin: 0 5px;
+}
+
+/* 当前页码样式 */
+.pagination li.active a,
+.pagination li.active span {
+    background-color: red !important;
+    border-color: red !important;
+    color: white !important;
+    pointer-events: none;
+    cursor: default;
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    display: inline-block;
+}
+
+/* 分页链接样式 */
+.pagination li a {
+    color: #333;
+    border: 1px solid #ddd;
+    padding: 6px 12px;
+    text-decoration: none;
+}
+
+/* 分页信息样式 */
+.pagination-info {
+    margin-left: 20px;
+    display: flex;
+    align-items: center;
+}
+
+.pagination-info span {
+    margin: 0 5px;
+}
+
+.pagination-info input {
+    width: 60px;
+    padding: 5px;
+    margin: 0 5px;
+}
+
+.pagination-info button {
+    padding: 5px 10px;
 }
