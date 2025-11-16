@@ -65,6 +65,9 @@
                     <button type="submit" class="btn btn-primary">搜索</button>
                     <button type="button" class="btn btn-success" data-toggle="modal" data-target="#addStudentModal">新增</button>
                 </form>
+                {% if error %}
+                <div class="alert alert-danger" role="alert">{{error}}</div>
+                {% endif %}
                 <div>{{search_result}}</div>
             </div>
         </div>
@@ -155,6 +158,37 @@
 </div>
 
 <!-- 新增学生模态框 -->
+<style>
+#addStudentModal {
+    z-index: 9999;
+}
+.modal-dialog {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 60px);
+}
+.modal-body .form-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+.modal-body .form-group label {
+    width: 80px;
+    margin-right: 15px;
+    text-align: right;
+}
+.modal-body .form-group .form-control {
+    flex: 1;
+}
+.modal-header {
+    padding: 10px 15px;
+}
+.modal-footer {
+    padding: 10px 15px;
+    margin-top: 0;
+}
+</style>
 <div class="modal fade" id="addStudentModal" tabindex="-1" role="dialog" aria-labelledby="addStudentModalLabel">
     <div class="modal-dialog" role="document">
         <div class="modal-content">

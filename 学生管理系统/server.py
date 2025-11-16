@@ -173,27 +173,36 @@ def add_student():
         return flask.redirect('/')
     
     # 获取输入的学生信息
-    student_id = flask.request.values.get("student_id", "")
-    student_class = flask.request.values.get("student_class", "")
-    student_name = flask.request.values.get("student_name", "")
-    student_sex = flask.request.values.get("student_sex", "")
+    student_id = flask.request.values.get("student_id", "").strip()
+    student_class = flask.request.values.get("student_class", "").strip()
+    student_name = flask.request.values.get("student_name", "").strip()
+    student_sex = flask.request.values.get("student_sex", "").strip()
 
     # 检查输入是否为空
     if not all([student_id, student_class, student_name, student_sex]):
-        return flask.redirect(flask.url_for('student', error="输入的学生信息不能为空"))
-    else:
-        try:
-            # 信息存入数据库
-            sql = "create table if not exists students_infos(student_id varchar(10) primary key,student_class varchar(100),student_name varchar(32),student_sex VARCHAR(4));"
-            cursor.execute(sql)
-            sql_1 = "insert into students_infos(student_id, student_class, student_name, student_sex) values(%s, %s, %s, %s)"
-            cursor.execute(sql_1, (student_id, student_class, student_name, student_sex))
-            print("成功存入一条学生信息")
-        except Exception as err:
-            print(err)
-            print("学生信息插入失败")
-            pass
+        return flask.redirect(flask.url_for('student', error="学号、姓名、班级、性别都不能为空"))
+    
+    try:
+        # 检查学号是否已存在
+        sql_check = "SELECT student_id FROM students_infos WHERE student_id = %s"
+        cursor.execute(sql_check, (student_id,))
+        existing_student = cursor.fetchone()
+        
+        if existing_student:
+            return flask.redirect(flask.url_for('student', error="学号已存在，请输入新的学号"))
+        
+        # 信息存入数据库
+        sql = "create table if not exists students_infos(student_id varchar(10) primary key,student_class varchar(100),student_name varchar(32),student_sex VARCHAR(4));"
+        cursor.execute(sql)
+        sql_1 = "insert into students_infos(student_id, student_class, student_name, student_sex) values(%s, %s, %s, %s)"
+        cursor.execute(sql_1, (student_id, student_class, student_name, student_sex))
+        print("成功存入一条学生信息")
         db.commit()
+    except Exception as err:
+        print(err)
+        print("学生信息插入失败")
+        db.rollback()
+        return flask.redirect(flask.url_for('student', error="学生信息插入失败，请检查输入"))
 
     return flask.redirect(flask.url_for('student'))
 
