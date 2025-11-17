@@ -299,48 +299,39 @@ def teacher_class():
         # 用户没有登陆
         print('用户还没有登陆!即将重定向!')
         return flask.redirect('/')
-    insert_result = ''
     # 当用户登陆有存储信息时显示用户名,否则为空
     if users:
         for user in users:
             user_info = user
     else:
         user_info = ''
-    # 获取显示管理员数据信息(GET方法的时候显示数据)
-    if flask.request.method == 'GET':
-        sql_list = "select * from techer_class_infos"
-        cursor.execute(sql_list)
-        results = cursor.fetchall()
-    if flask.request.method == 'POST':
-        # 获取输入的课程信息
-        teacher_id = flask.request.values.get("teacher_id", "")
-        teacher_class_id1 = flask.request.values.get("teacher_class_id1", "")
-        teacher_class_id2 = flask.request.values.get("teacher_class_id2", "")
-        teacher_class_id3 = flask.request.values.get("teacher_class_id3")
-
-        print(teacher_id, teacher_class_id1, teacher_class_id2, teacher_class_id3)
-
-        try:
-            # 信息存入数据库
-            sql = "create table if not exists techer_class_infos(teacher_id varchar(10) primary key,teacher_class_id1 varchar(100),teacher_class_id2 varchar(32),teacher_class_id3 VARCHAR(4));"
-            cursor.execute(sql)
-            sql_1 = "insert into techer_class_infos(teacher_id, teacher_class_id1, teacher_class_id2, teacher_class_id3 )values(%s,%s,%s,%s)"
-            cursor.execute(sql_1, (teacher_id, teacher_class_id1, teacher_class_id2, teacher_class_id3))
-            # result = cursor.fetchone()
-            insert_result = "成功存入一条信息"
-            print(insert_result)
-        except Exception as err:
-            print(err)
-            insert_result = "信息插入失败"
-            print(insert_result)
-            pass
-        db.commit()
-        # POST方法时显示数据
-        sql_list = "select * from techer_class_infos"
-        cursor.execute(sql_list)
-        results = cursor.fetchall()
-    return flask.render_template('teacher_class.html', insert_result=insert_result, user_info=user_info,
-                                 results=results)
+    # 处理分页
+    page = flask.request.args.get('page', 1, type=int)
+    per_page = 10  # 每页显示10条数据
+    offset = (page - 1) * per_page
+    # 处理搜索
+    teacher_name = flask.request.values.get("teacher_name", "")
+    search_class = flask.request.values.get("search_class", "")
+    # 构建搜索SQL
+    sql_search = "SELECT * FROM techer_class_infos WHERE 1=1"
+    params = []
+    if teacher_name:
+        sql_search += " AND teacher_id LIKE %s"
+        params.append(f"%{teacher_name}%")
+    if search_class:
+        sql_search += " AND (teacher_class_id1 LIKE %s OR teacher_class_id2 LIKE %s OR teacher_class_id3 LIKE %s)"
+        params.extend([f"%{search_class}%" for _ in range(3)])
+    # 执行搜索并分页
+    cursor.execute(sql_search, params)
+    total = cursor.rowcount
+    # 获取分页数据
+    sql_search += " LIMIT %s OFFSET %s"
+    params.extend([per_page, offset])
+    cursor.execute(sql_search, params)
+    results = cursor.fetchall()
+    # 计算总页数
+    total_pages = (total + per_page - 1) // per_page
+    return flask.render_template('teacher_class.html', user_info=user_info,results=results,teacher_name=teacher_name,search_class=search_class,page=page,per_page=per_page,total_pages=total_pages,total=total)
 
 
 @app.route('/teacher', methods=['GET', "POST"])
