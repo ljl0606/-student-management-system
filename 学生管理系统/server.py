@@ -334,7 +334,7 @@ def teacher_class():
     return flask.render_template('teacher_class.html', user_info=user_info,results=results,teacher_name=teacher_name,search_class=search_class,page=page,per_page=per_page,total_pages=total_pages,total=total)
 
 
-@app.route('/teacher', methods=['GET', "POST"])
+@app.route('/teacher', methods=['GET', 'POST'])
 def teacher():
     # login session值
     if flask.session.get("login", "") == '':
@@ -348,52 +348,60 @@ def teacher():
             user_info = user
     else:
         user_info = ''
-    # 获取显示管理员数据信息(GET方法的时候显示数据)
-    if flask.request.method == 'GET':
-        sql_list = "select * from students_decision_infos"
-        cursor.execute(sql_list)
-        results = cursor.fetchall()
-        # 获取所有教师信息
-        sql_teachers = "select teacher_id from techer_class_infos"
-        cursor.execute(sql_teachers)
-        teachers = cursor.fetchall()
-        # 获取所有课程信息
-        sql_courses = "select * from techer_class_infos"
-        cursor.execute(sql_courses)
-        courses = cursor.fetchall()
-        # 构建教师和课程的对应关系
-        teacher_course_map = {}
-        for course in courses:
-            teacher_id = course[0]
-            teacher_course_map[teacher_id] = course[1:]
-    if flask.request.method == 'POST':
-        # 获取输入的学生选课信息
-        student_id = flask.request.values.get("student_id", "")
-        student_class_id = flask.request.values.get("student_class_id", "")
-        student_class_id2 = flask.request.values.get("student_class_id2", "")
-        student_class_id3 = flask.request.values.get("student_class_id3", "")
-
-        print(student_id, student_class_id, student_class_id2, student_class_id3)
-        try:
-            # 信息存入数据库
-            sql = "create table if not exists students_decision_infos(student_id varchar(15) primary key,student_class_id varchar(20),student_class_id2 varchar(15),student_class_id3 varchar(15),foreign key(student_id) references students_infos(student_id));"
-            cursor.execute(sql)
-            sql_1 = "insert into students_decision_infos(student_id, student_class_id, student_class_id2, student_class_id3)values(%s,%s,%s,%s)"
-            cursor.execute(sql_1, (student_id, student_class_id, student_class_id2, student_class_id3))
-            # result = cursor.fetchone()
-            insert_result = "成功存入一条选课信息"
-            print(insert_result)
-        except Exception as err:
-            print(err)
-            insert_result = "选课信息插入失败"
-            print(insert_result)
-            pass
-        db.commit()
-        # POST显示数据
-        sql_list = "select * from students_decision_infos"
-        cursor.execute(sql_list)
-        results = cursor.fetchall()
-    return flask.render_template('teacher.html', insert_result=insert_result, user_info=user_info, results=results, teachers=teachers, teacher_course_map=teacher_course_map)
+    
+    # 处理搜索
+    student_id = flask.request.values.get("student_id", "")
+    selected_course = flask.request.values.get("selected_course", "")
+    selected_teacher = flask.request.values.get("teacher_id", "")
+    
+    # 处理分页
+    page = flask.request.args.get('page', 1, type=int)
+    per_page = 10  # 每页显示10条数据
+    offset = (page - 1) * per_page
+    
+    # 获取显示管理员数据信息
+    sql_list = "SELECT sdi.*, si.student_name, si.student_class FROM students_decision_infos sdi LEFT JOIN students_infos si ON sdi.student_id = si.student_id WHERE 1=1"
+    params = []
+    
+    if student_id:
+        sql_list += " AND sdi.student_id LIKE %s"
+        params.append(f"%{student_id}%")
+    
+    if selected_course:
+        sql_list += " AND (sdi.student_class_id LIKE %s OR sdi.student_class_id2 LIKE %s OR sdi.student_class_id3 LIKE %s)"
+        params.extend([f"%{selected_course}%"] * 3)
+    
+    # 获取总记录数
+    sql_count = sql_list.replace("SELECT sdi.*, si.student_name, si.student_class", "SELECT COUNT(*)")
+    cursor.execute(sql_count, params)
+    total = cursor.fetchone()[0]
+    
+    # 执行查询并分页
+    sql_list += " LIMIT %s OFFSET %s"
+    params.extend([per_page, offset])
+    cursor.execute(sql_list, params)
+    results = cursor.fetchall()
+    
+    # 计算总页数
+    total_pages = (total + per_page - 1) // per_page
+    
+    # 获取所有教师信息
+    sql_teachers = "select teacher_id from techer_class_infos"
+    cursor.execute(sql_teachers)
+    teachers = cursor.fetchall()
+    
+    # 获取所有课程信息
+    sql_courses = "select * from techer_class_infos"
+    cursor.execute(sql_courses)
+    courses = cursor.fetchall()
+    
+    # 构建教师和课程的对应关系
+    teacher_course_map = {}
+    for course in courses:
+        teacher_id = course[0]
+        teacher_course_map[teacher_id] = course[1:]
+    
+    return flask.render_template('teacher.html', user_info=user_info, results=results, teachers=teachers, teacher_course_map=teacher_course_map, student_id=student_id, selected_course=selected_course, selected_teacher=selected_teacher, page=page, per_page=per_page, total_pages=total_pages, total=total)
 
 
 @app.route('/grade', methods=['GET', "POST"])
