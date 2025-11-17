@@ -600,10 +600,10 @@ CREATE TABLE `sys_user`  (
 INSERT INTO `sys_user` VALUES (1, 'wyc', 'a123');
 
 -- ----------------------------
--- Table structure for techer_class_infos
+-- Table structure for teacher_class_infos
 -- ----------------------------
-DROP TABLE IF EXISTS `techer_class_infos`;
-CREATE TABLE `techer_class_infos`  (
+DROP TABLE IF EXISTS `teacher_class_infos`;
+CREATE TABLE `teacher_class_infos`  (
   `teacher_id` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
   `teacher_class_id1` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
   `teacher_class_id2` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
@@ -612,9 +612,9 @@ CREATE TABLE `techer_class_infos`  (
 ) ENGINE = MyISAM CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
--- Records of techer_class_infos
+-- Records of teacher_class_infos
 -- ----------------------------
-INSERT INTO `techer_class_infos` VALUES ('魏亚玲', '茅坪夜谈', '风景村怪谈', '梦回大唐');
-INSERT INTO `techer_class_infos` VALUES ('于千城', '软件工程', '软件测试', 'C语言');
+INSERT INTO `teacher_class_infos` VALUES ('魏亚玲', '茅坪夜谈', '风景村怪谈', '梦回大唐');
+INSERT INTO `teacher_class_infos` VALUES ('于千城', '软件工程', '软件测试', 'C语言');
 
 SET FOREIGN_KEY_CHECKS = 1;

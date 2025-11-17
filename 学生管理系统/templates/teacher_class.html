@@ -8,6 +8,8 @@
     <link rel="icon" href="../favicon.ico">
     <link rel="stylesheet" type="text/css" href="../static/css/bootstrap.min.css"/>
     <link rel="stylesheet" type="text/css" href="../static/css/main.css"/>
+    <script src="../static/js/jquery-3.3.1.min.js"></script>
+    <script src="../static/js/bootstrap.min.js"></script>
 
 
 </head>
@@ -50,6 +52,7 @@
                         <input type="text" class="form-control" id="search_class" name="search_class" placeholder="请输入课程名称" value="{{search_class}}">
                     </div>
                     <button type="submit" class="btn btn-primary">搜索</button>
+        <button type="button" class="btn btn-success" data-toggle="modal" data-target="#addModal">新增</button>
                 </form>
             </div>
         </div>
@@ -61,6 +64,7 @@
                         <th>开设课程1</th>
                         <th>开设课程2</th>
                         <th>开设课程3</th>
+                        <th>操作</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -70,6 +74,10 @@
                         <td>{{result[1]}}</td>
                         <td>{{result[2]}}</td>
                         <td>{{result[3]}}</td>
+                        <td>
+                            <button type="button" class="btn btn-info btn-sm edit-btn" data-toggle="modal" data-target="#editModal" data-teacher="{{result[0]}}" data-class1="{{result[1]}}" data-class2="{{result[2]}}" data-class3="{{result[3]}}">编辑</button>
+                            <button type="button" class="btn btn-danger btn-sm delete-btn" data-teacher="{{result[0]}}">删除</button>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -118,20 +126,115 @@
             </div>
         </div>
         <script>
-        function jumpToPage() {
-            var page = document.getElementById('jumpPage').value;
-            var teacher_name = '{{teacher_name}}';
-            var search_class = '{{search_class}}';
-            var url = '/teacher_class?page=' + page;
-            if (teacher_name) {
-                url += '&teacher_name=' + encodeURIComponent(teacher_name);
+        $(document).ready(function() {
+            function jumpToPage() {
+                var page = document.getElementById('jumpPage').value;
+                var teacher_name = '{{teacher_name}}';
+                var search_class = '{{search_class}}';
+                var url = '/teacher_class?page=' + page;
+                if (teacher_name) {
+                    url += '&teacher_name=' + encodeURIComponent(teacher_name);
+                }
+                if (search_class) {
+                    url += '&search_class=' + encodeURIComponent(search_class);
+                }
+                window.location.href = url;
             }
-            if (search_class) {
-                url += '&search_class=' + encodeURIComponent(search_class);
-            }
-            window.location.href = url;
-        }
+            
+            // 编辑按钮点击事件
+            $('.edit-btn').click(function() {
+                var teacher = $(this).data('teacher');
+                var class1 = $(this).data('class1');
+                var class2 = $(this).data('class2');
+                var class3 = $(this).data('class3');
+                
+                $('#editTeacher').val(teacher);
+                $('#editClass1').val(class1);
+                $('#editClass2').val(class2);
+                $('#editClass3').val(class3);
+            });
+            
+            // 删除按钮点击事件
+            $('.delete-btn').click(function() {
+                var teacher = $(this).data('teacher');
+                if (confirm('确定要删除该教师的课程信息吗？')) {
+                    window.location.href = '/delete_teacher_class?teacher_id=' + encodeURIComponent(teacher);
+                }
+            });
+        });
         </script>
+    </div>
+    
+    <!-- 新增模态框 -->
+    <div class="modal fade" id="addModal" tabindex="-1" role="dialog" aria-labelledby="addModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="addModalLabel">新增老师开设课程</h4>
+                </div>
+                <form action="/add_teacher_class" method="post">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="addTeacher">老师名称</label>
+                            <input type="text" class="form-control" id="addTeacher" name="teacher_id" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="addClass1">开设课程1</label>
+                            <input type="text" class="form-control" id="addClass1" name="class1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="addClass2">开设课程2</label>
+                            <input type="text" class="form-control" id="addClass2" name="class2" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="addClass3">开设课程3</label>
+                            <input type="text" class="form-control" id="addClass3" name="class3" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 编辑模态框 -->
+    <div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="editModalLabel">编辑老师开设课程</h4>
+                </div>
+                <form action="/edit_teacher_class" method="post">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="editTeacher">老师名称</label>
+                            <input type="text" class="form-control" id="editTeacher" name="teacher_id" required readonly>
+                        </div>
+                        <div class="form-group">
+                            <label for="editClass1">开设课程1</label>
+                            <input type="text" class="form-control" id="editClass1" name="class1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editClass2">开设课程2</label>
+                            <input type="text" class="form-control" id="editClass2" name="class2" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editClass3">开设课程3</label>
+                            <input type="text" class="form-control" id="editClass3" name="class3" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 </body>

@@ -10,6 +10,16 @@ db = pymysql.connect(host='192.168.6.88', port=3306, user='root',
                      password='123456', database='student', charset='utf8')
 # 操作数据库，获取db下的cursor对象
 cursor = db.cursor()
+
+# 创建teacher_class_infos表（如果不存在）
+try:
+    sql = "create table if not exists teacher_class_infos(teacher_id varchar(10) primary key, teacher_class_id1 varchar(100), teacher_class_id2 varchar(32), teacher_class_id3 varchar(4))"
+    cursor.execute(sql)
+    db.commit()
+except Exception as e:
+    print("创建teacher_class_infos表失败：", e)
+    db.rollback()
+
 # 存储登陆用户的名字用户其它网页的显示
 users = []
 
@@ -313,7 +323,7 @@ def teacher_class():
     teacher_name = flask.request.values.get("teacher_name", "")
     search_class = flask.request.values.get("search_class", "")
     # 构建搜索SQL
-    sql_search = "SELECT * FROM techer_class_infos WHERE 1=1"
+    sql_search = "SELECT * FROM teacher_class_infos WHERE 1=1"
     params = []
     if teacher_name:
         sql_search += " AND teacher_id LIKE %s"
@@ -332,6 +342,97 @@ def teacher_class():
     # 计算总页数
     total_pages = (total + per_page - 1) // per_page
     return flask.render_template('teacher_class.html', user_info=user_info,results=results,teacher_name=teacher_name,search_class=search_class,page=page,per_page=per_page,total_pages=total_pages,total=total)
+
+
+@app.route('/add_teacher_class', methods=['POST'])
+def add_teacher_class():
+    # login session值
+    if flask.session.get("login", "") == '':
+        # 用户没有登陆
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+    
+    if flask.request.method == 'POST':
+        # 获取输入的教师课程信息
+        teacher_id = flask.request.values.get("teacher_id", "")
+        class1 = flask.request.values.get("class1", "")
+        class2 = flask.request.values.get("class2", "")
+        class3 = flask.request.values.get("class3", "")
+        
+        # 验证必填项
+        if not teacher_id or not class1 or not class2 or not class3:
+            return flask.redirect('/teacher_class')
+        
+        try:
+            # 检查教师名称唯一性
+            sql_check = "SELECT * FROM teacher_class_infos WHERE teacher_id = %s"
+            cursor.execute(sql_check, (teacher_id,))
+            result = cursor.fetchone()
+            if result:
+                return flask.redirect('/teacher_class')
+            
+            # 插入新记录
+            sql_insert = "INSERT INTO teacher_class_infos(teacher_id, teacher_class_id1, teacher_class_id2, teacher_class_id3) VALUES(%s, %s, %s, %s)"
+            cursor.execute(sql_insert, (teacher_id, class1, class2, class3))
+            db.commit()
+        except Exception as err:
+            print(err)
+            db.rollback()
+    
+    return flask.redirect('/teacher_class')
+
+
+@app.route('/edit_teacher_class', methods=['POST'])
+def edit_teacher_class():
+    # login session值
+    if flask.session.get("login", "") == '':
+        # 用户没有登陆
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+    
+    if flask.request.method == 'POST':
+        # 获取输入的教师课程信息
+        teacher_id = flask.request.values.get("teacher_id", "")
+        class1 = flask.request.values.get("class1", "")
+        class2 = flask.request.values.get("class2", "")
+        class3 = flask.request.values.get("class3", "")
+        
+        # 验证必填项
+        if not teacher_id or not class1 or not class2 or not class3:
+            return flask.redirect('/teacher_class')
+        
+        try:
+            # 更新记录
+            sql_update = "UPDATE teacher_class_infos SET teacher_class_id1 = %s, teacher_class_id2 = %s, teacher_class_id3 = %s WHERE teacher_id = %s"
+            cursor.execute(sql_update, (class1, class2, class3, teacher_id))
+            db.commit()
+        except Exception as err:
+            print(err)
+            db.rollback()
+    
+    return flask.redirect('/teacher_class')
+
+
+@app.route('/delete_teacher_class', methods=['GET'])
+def delete_teacher_class():
+    # login session值
+    if flask.session.get("login", "") == '':
+        # 用户没有登陆
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+    
+    teacher_id = flask.request.args.get('teacher_id', '')
+    if teacher_id:
+        try:
+            # 删除记录
+            sql_delete = "DELETE FROM teacher_class_infos WHERE teacher_id = %s"
+            cursor.execute(sql_delete, (teacher_id,))
+            db.commit()
+        except Exception as err:
+            print(err)
+            db.rollback()
+    
+    return flask.redirect('/teacher_class')
 
 
 @app.route('/teacher', methods=['GET', "POST"])
@@ -354,11 +455,11 @@ def teacher():
         cursor.execute(sql_list)
         results = cursor.fetchall()
         # 获取所有教师信息
-        sql_teachers = "select teacher_id from techer_class_infos"
+        sql_teachers = "select teacher_id from teacher_class_infos"
         cursor.execute(sql_teachers)
         teachers = cursor.fetchall()
         # 获取所有课程信息
-        sql_courses = "select * from techer_class_infos"
+        sql_courses = "select * from teacher_class_infos"
         cursor.execute(sql_courses)
         courses = cursor.fetchall()
         # 构建教师和课程的对应关系
