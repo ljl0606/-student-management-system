@@ -157,6 +157,8 @@
         var teacherSelect = document.getElementById('teacher_id' + courseNum);
         var courseSelect = document.getElementById('course' + courseNum);
         var selectedTeacher = teacherSelect.value;
+        // 保存原有课程选择
+        var originalCourse = courseSelect.value;
         
         // 清空课程下拉框
         courseSelect.innerHTML = '<option value="">请选择课程</option>';
@@ -167,6 +169,10 @@
                 var option = document.createElement('option');
                 option.value = course;
                 option.textContent = course;
+                // 如果是原有课程则选中
+                if (course == originalCourse) {
+                    option.selected = true;
+                }
                 courseSelect.appendChild(option);
             });
         }
