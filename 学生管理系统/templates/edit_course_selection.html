@@ -45,12 +45,12 @@
 
     </div>
     <div class="container-fluid">
-        <h1 class="sub-header">学 生 选 课 信 息 录 入 系 统</h1>
+        <h1 class="sub-header">学 生 选 课 信 息 修 改 系 统</h1>
         &nbsp;&nbsp;
         <hr>
         <div class="row">
             <div class="col-md-8">
-                <form action="{{ url_for('add_course_selection') }}" method="post" class="form-horizontal">
+                <form action="{{ url_for('edit_course_selection', id=edit_data[0]) }}" method="post" class="form-horizontal">
                     {% with messages = get_flashed_messages(with_categories=true) %}
                         {% if messages %}
                             {% for category, message in messages %}
@@ -63,7 +63,7 @@
                     <div class="form-group">
                         <label for="student_id" class="col-sm-2 control-label">学生学号</label>
                         <div class="col-sm-10">
-                            <input type="text" class="form-control" id="student_id" name="student_id" list="students_list" placeholder="请输入或选择学号" required>
+                            <input type="text" class="form-control" id="student_id" name="student_id" list="students_list" placeholder="请输入或选择学号" value="{{ edit_data[1] }}" required>
                             <datalist id="students_list">
                                 {% for student in students %}
                                 <option value="{{ student[0] }}">{{ student[0] }} - {{ student[1] }}</option>
@@ -77,7 +77,7 @@
                             <select class="form-control" id="teacher_id1" name="teacher_id1" onchange="updateCourses(1)" required>
                                 <option value="">请选择教师</option>
                                 {% for teacher in teachers %}
-                                <option value="{{ teacher[0] }}">{{ teacher[0] }}</option>
+                                <option value="{{ teacher[0] }}" {% for course in teacher_course_map[teacher[0]] %}{% if course == edit_data[2] %}selected{% endif %}{% endfor %}>{{ teacher[0] }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -85,6 +85,11 @@
                         <div class="col-sm-4">
                             <select class="form-control" id="course1" name="course1" required>
                                 <option value="">请选择课程</option>
+                                {% for teacher in teachers %}
+                                    {% for course in teacher_course_map[teacher[0]] %}
+                                        <option value="{{ course }}" {% if course == edit_data[2] %}selected{% endif %}>{{ course }}</option>
+                                    {% endfor %}
+                                {% endfor %}
                             </select>
                         </div>
                     </div>
@@ -94,7 +99,7 @@
                             <select class="form-control" id="teacher_id2" name="teacher_id2" onchange="updateCourses(2)" required>
                                 <option value="">请选择教师</option>
                                 {% for teacher in teachers %}
-                                <option value="{{ teacher[0] }}">{{ teacher[0] }}</option>
+                                <option value="{{ teacher[0] }}" {% for course in teacher_course_map[teacher[0]] %}{% if course == edit_data[3] %}selected{% endif %}{% endfor %}>{{ teacher[0] }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -102,6 +107,11 @@
                         <div class="col-sm-4">
                             <select class="form-control" id="course2" name="course2" required>
                                 <option value="">请选择课程</option>
+                                {% for teacher in teachers %}
+                                    {% for course in teacher_course_map[teacher[0]] %}
+                                        <option value="{{ course }}" {% if course == edit_data[3] %}selected{% endif %}>{{ course }}</option>
+                                    {% endfor %}
+                                {% endfor %}
                             </select>
                         </div>
                     </div>
@@ -111,7 +121,7 @@
                             <select class="form-control" id="teacher_id3" name="teacher_id3" onchange="updateCourses(3)" required>
                                 <option value="">请选择教师</option>
                                 {% for teacher in teachers %}
-                                <option value="{{ teacher[0] }}">{{ teacher[0] }}</option>
+                                <option value="{{ teacher[0] }}" {% for course in teacher_course_map[teacher[0]] %}{% if course == edit_data[4] %}selected{% endif %}{% endfor %}>{{ teacher[0] }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -119,6 +129,11 @@
                         <div class="col-sm-4">
                             <select class="form-control" id="course3" name="course3" required>
                                 <option value="">请选择课程</option>
+                                {% for teacher in teachers %}
+                                    {% for course in teacher_course_map[teacher[0]] %}
+                                        <option value="{{ course }}" {% if course == edit_data[4] %}selected{% endif %}>{{ course }}</option>
+                                    {% endfor %}
+                                {% endfor %}
                             </select>
                         </div>
                     </div>
@@ -142,70 +157,33 @@
         var teacherSelect = document.getElementById('teacher_id' + courseNum);
         var courseSelect = document.getElementById('course' + courseNum);
         var selectedTeacher = teacherSelect.value;
+        // 保存原有课程选择
+        var originalCourse = courseSelect.value;
         
         // 清空课程下拉框
         courseSelect.innerHTML = '<option value="">请选择课程</option>';
         
         // 如果选择了教师，则添加对应的课程
         if (selectedTeacher && teacherCourseMap[selectedTeacher]) {
-            var courses = teacherCourseMap[selectedTeacher];
-            for (var i = 0; i < courses.length; i++) {
-                if (courses[i]) {
-                    var option = document.createElement('option');
-                    option.value = courses[i];
-                    option.textContent = courses[i];
-                    courseSelect.appendChild(option);
+            teacherCourseMap[selectedTeacher].forEach(function(course) {
+                var option = document.createElement('option');
+                option.value = course;
+                option.textContent = course;
+                // 如果是原有课程则选中
+                if (course == originalCourse) {
+                    option.selected = true;
                 }
-            }
+                courseSelect.appendChild(option);
+            });
         }
     }
     
-    // 实现学号搜索功能
-    document.addEventListener('DOMContentLoaded', function() {
-        var studentSelect = document.getElementById('student_id');
-        var studentOptions = Array.from(studentSelect.options);
-        var originalSize = studentSelect.size;
-        
-        studentSelect.addEventListener('input', function() {
-            var inputValue = this.value.toLowerCase();
-            var filteredOptions = studentOptions.filter(function(option) {
-                return option.value.toLowerCase().includes(inputValue) || option.textContent.toLowerCase().includes(inputValue);
-            });
-            
-            // 保存当前选中的值
-            var selectedValue = studentSelect.value;
-            
-            // 清空当前选项
-            studentSelect.innerHTML = '';
-            
-            // 添加过滤后的选项
-            filteredOptions.forEach(function(option) {
-                studentSelect.appendChild(option.cloneNode(true));
-            });
-            
-            // 恢复选中的值
-            studentSelect.value = selectedValue;
-            
-            // 确保下拉框展开
-            studentSelect.size = Math.min(filteredOptions.length, 10);
-        });
-        
-        studentSelect.addEventListener('blur', function() {
-            // 保存当前选中的值
-            var selectedValue = studentSelect.value;
-            
-            // 恢复原始选项
-            studentSelect.innerHTML = '';
-            studentOptions.forEach(function(option) {
-                studentSelect.appendChild(option.cloneNode(true));
-            });
-            
-            // 恢复选中的值
-            studentSelect.value = selectedValue;
-            
-            studentSelect.size = originalSize;
-        });
-    });
+    // 页面加载时初始化课程下拉框
+    window.onload = function() {
+        updateCourses(1);
+        updateCourses(2);
+        updateCourses(3);
+    };
 </script>
 </body>
 
