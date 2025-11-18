@@ -404,6 +404,72 @@ def teacher():
     return flask.render_template('teacher.html', user_info=user_info, results=results, teachers=teachers, teacher_course_map=teacher_course_map, student_id=student_id, selected_course=selected_course, selected_teacher=selected_teacher, page=page, per_page=per_page, total_pages=total_pages, total=total)
 
 
+@app.route('/add_course_selection', methods=['GET', 'POST'])
+def add_course_selection():
+    # login session值
+    if flask.session.get("login", "") == '':
+        # 用户没有登陆
+        print('用户还没有登陆!即将重定向!')
+        return flask.redirect('/')
+    # 当用户登陆有存储信息时显示用户名,否则为空
+    if users:
+        for user in users:
+            user_info = user
+    else:
+        user_info = ''
+    
+    if flask.request.method == 'POST':
+        # 获取输入的选课信息
+        student_id = flask.request.values.get("student_id", "").strip()
+        course1 = flask.request.values.get("course1", "").strip()
+        course2 = flask.request.values.get("course2", "").strip()
+        course3 = flask.request.values.get("course3", "").strip()
+        
+        # 验证输入是否为空
+        if not all([student_id, course1, course2, course3]):
+            flask.flash('所有字段都是必填项，请填写完整', 'error')
+            return flask.redirect(flask.url_for('add_course_selection'))
+        
+        try:
+            # 信息存入数据库
+            sql = "create table if not exists students_decision_infos(id int auto_increment primary key, student_id varchar(10), student_class_id varchar(100), student_class_id2 varchar(100), student_class_id3 varchar(100))"
+            cursor.execute(sql)
+            sql_1 = "insert into students_decision_infos(student_id, student_class_id, student_class_id2, student_class_id3) values(%s, %s, %s, %s)"
+            cursor.execute(sql_1, (student_id, course1, course2, course3))
+            print("成功存入一条选课信息")
+            db.commit()
+            flask.flash('选课信息添加成功', 'success')
+            return flask.redirect(flask.url_for('teacher'))
+            
+        except Exception as err:
+            print(err)
+            flask.flash('选课信息插入失败', 'error')
+            return flask.redirect(flask.url_for('add_course_selection'))
+    else:
+        # 获取所有学生信息
+        sql_students = "select student_id, student_name from students_infos"
+        cursor.execute(sql_students)
+        students = cursor.fetchall()
+        
+        # 获取所有教师信息
+        sql_teachers = "select teacher_id from techer_class_infos"
+        cursor.execute(sql_teachers)
+        teachers = cursor.fetchall()
+        
+        # 获取所有课程信息
+        sql_courses = "select * from techer_class_infos"
+        cursor.execute(sql_courses)
+        courses = cursor.fetchall()
+        
+        # 构建教师和课程的对应关系
+        teacher_course_map = {}
+        for course in courses:
+            teacher_id = course[0]
+            teacher_course_map[teacher_id] = course[1:]
+        
+        return flask.render_template('add_course_selection.html', user_info=user_info, students=students, teachers=teachers, teacher_course_map=teacher_course_map)
+
+
 @app.route('/grade', methods=['GET', "POST"])
 def grade():
     # login session值
