@@ -34,31 +34,52 @@
     <div class="container-fluid">
         <h1 class="sub-header">学 生 成 绩 查 询 系 统</h1>&nbsp;&nbsp;
         <hr>
+        <div class="row">
+            <div class="col-md-12">
+                <form action="" method="get" class="form-inline">
+                    <div class="form-group">
+                        <label for="student_selector">学号:</label>
+                        <input type="text" class="form-control" id="student_selector" placeholder="输入学号或姓名查找" value="{% for student in students %}{% if student[0] == student_id %}{{student[0]}} - {{student[1]}}{% endif %}{% endfor %}" oninput="filterStudentOptions()">
+                        <input type="hidden" name="student_id" id="student_id_hidden" value="{{student_id}}">
+                        <div id="student_options" class="dropdown-menu" style="width: 100%; max-height: 200px; overflow-y: auto; display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="course_id">课程:</label>
+                        <input type="text" class="form-control" id="course_id" name="course_id" value="{{course_id}}" placeholder="请输入课程号">
+                    </div>
+                    <div class="form-group">
+                        <label for="grade_range">成绩范围:</label>
+                        <select name="grade_range" id="grade_range" class="form-control">
+                            <option value="">请选择成绩范围</option>
+                            <option value="<60" {% if grade_range == "<60" %}selected{% endif %}>&lt;60</option>
+                            <option value="<80" {% if grade_range == "<80" %}selected{% endif %}>&lt;80 (60-79)</option>
+                            <option value="<90" {% if grade_range == "<90" %}selected{% endif %}>&lt;90 (80-89)</option>
+                            <option value=">=90" {% if grade_range == ">=90" %}selected{% endif %}>&gt;=90</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">搜索</button>
+                    <a href="{{ url_for('grade_infos') }}" class="btn btn-default">重置</a>
+                </form>
+            </div>
+        </div>
+        <br>
         <div class="table-responsive">
-            <table class="table table-striped" cellspaing="10">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>学生学号</th>
+                        <th>学生姓名</th>
+                        <th>学生班级</th>
+                        <th>课程名称</th>
+                        <th>成绩</th>
+                    </tr>
+                </thead>
                 <tbody>
-                    <tr>
-                        <form action="" method="post" onsubmit="return handleSubmit()">
-                            <td><label for="#">请选择查询的方式:(学号/姓名/课程名称/所在班级)</label>&nbsp;&nbsp;&nbsp;</td>
-                            <td><select name="selected_one">
-                                    <option value="学号" selected="selected">学号</option>
-                                    <option value="姓名">姓名</option>
-                                    <option value="课程号">课程号</option>
-                                    <option value="所在班级">所在班级</option>
-                                </select></td>&nbsp;
-                            <td><input class="long" type="text" name="query"></td>
-                            <td><input class="last" type="submit" value="查询" /></td>
-                            <td"><span>查询结果:{{query_result}}</span></td>
-                        </form>
-                    </tr>
-                    <tr>
-                        <td>学生学号</td>
-                        <td>课程号</td>
-                        <td>成绩</td>
-                    </tr>
                     {% for result in results %}
                     <tr>
                         <td>{{result[0]}}</td>
+                        <td>{{result[3]}}</td>
+                        <td>{{result[4]}}</td>
                         <td>{{result[1]}}</td>
                         <td>{{result[2]}}</td>
                     </tr>
@@ -66,6 +87,123 @@
                 </tbody>
             </table>
         </div>
+        <!-- 分页 -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="pagination-container">
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination">
+                            {% if page > 1 %}
+                            <li>
+                                <a href="{{ url_for('grade_infos', page=page-1, student_id=student_id, course_id=course_id, grade_range=grade_range) }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for i in range(1, total_pages+1) %}
+                            <li {% if page == i %}class="active"{% endif %}>
+                                {% if page == i %}
+                                <span>{{i}}</span>
+                                {% else %}
+                                <a href="{{ url_for('grade_infos', page=i, student_id=student_id, course_id=course_id, grade_range=grade_range) }}">{{i}}</a>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                            
+                            {% if page < total_pages %}
+                            <li>
+                                <a href="{{ url_for('grade_infos', page=page+1, student_id=student_id, course_id=course_id, grade_range=grade_range) }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    <div class="pagination-info">
+                        <span>共 {{total}} 条记录</span>
+                        <span>跳转到</span>
+                        <input type="number" id="jumpPage" min="1" max="{{total_pages}}" value="{{page}}">
+                        <button onclick="jumpToPage()">确定</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            function jumpToPage() {
+                var page = document.getElementById('jumpPage').value;
+                var url = '{{ url_for('grade_infos', page=1, student_id=student_id, course_id=course_id, grade_range=grade_range) }}';
+                url = url.replace('page=1', 'page=' + page);
+                window.location.href = url;
+            }
+            
+            // 学号搜索过滤功能
+            function filterStudentOptions() {
+                var input = document.getElementById('student_selector');
+                var filter = input.value.toLowerCase();
+                var optionsDiv = document.getElementById('student_options');
+                
+                // 清空之前的结果
+                optionsDiv.innerHTML = '';
+                
+                // 学生数据
+                var students = [
+                    {% for student in students %}
+                    {"id": "{{student[0]}}", "name": "{{student[1]}}"},
+                    {% endfor %}
+                ];
+                
+                // 如果输入为空，不显示结果
+                if (filter === '') {
+                    optionsDiv.style.display = 'none';
+                    return;
+                }
+                
+                // 过滤并显示匹配的选项
+                var filteredStudents = students.filter(function(student) {
+                    return student.id.toLowerCase().includes(filter) || student.name.toLowerCase().includes(filter);
+                });
+                
+                // 创建选项
+                filteredStudents.forEach(function(student) {
+                    var div = document.createElement('div');
+                    div.className = 'dropdown-item';
+                    div.textContent = student.id + ' - ' + student.name;
+                    div.onclick = function() {
+                        // 设置输入框显示的文本
+                        document.getElementById('student_selector').value = this.textContent;
+                        // 设置隐藏字段的值
+                        document.getElementById('student_id_hidden').value = student.id;
+                        // 隐藏选项列表
+                        document.getElementById('student_options').style.display = 'none';
+                    };
+                    optionsDiv.appendChild(div);
+                });
+                
+                // 如果有匹配的结果，显示选项列表
+                if (filteredStudents.length > 0) {
+                    optionsDiv.style.display = 'block';
+                } else {
+                    optionsDiv.style.display = 'none';
+                }
+            }
+            
+            // 页面加载时初始化
+            document.addEventListener('DOMContentLoaded', function() {
+                // 为输入框添加事件监听
+                var input = document.getElementById('student_selector');
+                input.addEventListener('input', filterStudentOptions);
+                
+                // 点击页面其他地方关闭下拉菜单
+                document.addEventListener('click', function(event) {
+                    var optionsDiv = document.getElementById('student_options');
+                    var input = document.getElementById('student_selector');
+                    if (event.target !== input && !optionsDiv.contains(event.target)) {
+                        optionsDiv.style.display = 'none';
+                    }
+                });
+            });
+        </script>
 
     </div>
 </div>

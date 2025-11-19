@@ -130,7 +130,7 @@ def student():
             count_params.append(student_sex)
             
         cursor.execute(sql_count, count_params)
-        total = cursor.fetchone()[0]
+        total = int(cursor.fetchone()[0])
         
         search_result = f"搜索到 {total} 条记录"
     else:
@@ -142,7 +142,7 @@ def student():
         # 获取总记录数
         sql_count = "SELECT COUNT(*) FROM students_infos"
         cursor.execute(sql_count)
-        total = cursor.fetchone()[0]
+        total = int(cursor.fetchone()[0])
     
     # 计算总页数
     total_pages = (total + per_page - 1) // per_page
@@ -380,7 +380,7 @@ def teacher():
     # 获取总记录数
     sql_count = sql_list.replace("SELECT sdi.*, si.student_name, si.student_class", "SELECT COUNT(*)")
     cursor.execute(sql_count, params)
-    total = cursor.fetchone()[0]
+    total = int(cursor.fetchone()[0])
     
     # 执行查询并分页
     sql_list += " LIMIT %s OFFSET %s"
@@ -629,71 +629,88 @@ def grade_infos():
         # 用户没有登陆
         print('用户还没有登陆!即将重定向!')
         return flask.redirect('/')
-    query_result = ''
-    results = ''
+    
     # 当用户登陆有存储信息时显示用户名,否则为空
     if users:
         for user in users:
             user_info = user
     else:
         user_info = ''
-    # 获取下拉框的数据
-    if flask.request.method == 'POST':
-        select = flask.request.form.get('selected_one')
-        query = flask.request.values.get('query')
-        print(select, query)
-        # 判断不同输入对数据表进行不同的处理
-        if select == '学号':
-            try:
-                sql = "select * from grade_infos where student_id = %s; "
-                cursor.execute(sql, query)
-                results = cursor.fetchall()
-                if results:
-                    query_result = '查询成功!'
-                else:
-                    query_result = '查询失败!'
-            except Exception as err:
-                print(err)
-                pass
-        if select == '姓名':
-            try:
-                sql = "select * from grade_infos where student_id in(select student_id from students_infos where student_name=%s);"
-                cursor.execute(sql, query)
-                results = cursor.fetchall()
-                if results:
-                    query_result = '查询成功!'
-                else:
-                    query_result = '查询失败!'
-            except Exception as err:
-                print(err)
-                pass
-
-        if select == '课程名称':
-            try:
-                sql = "select * from grade_infos where student_class_id in(select student_class_id from students_infos where student_class_id=%s);"
-                cursor.execute(sql, query)
-                results = cursor.fetchall()
-                if results:
-                    query_result = '查询成功!'
-                else:
-                    query_result = '查询失败!'
-            except Exception as err:
-                print(err)
-                pass
-
-        if select == "所在班级":
-            try:
-                sql = "select * from grade_infos where student_class_id in(select student_class_id from students_infos where student_class=%s);"
-                cursor.execute(sql, query)
-                results = cursor.fetchall()
-                if results:
-                    query_result = '查询成功!'
-                else:
-                    query_result = '查询失败!'
-            except Exception as err:
-                print(err)
-                pass
-    return flask.render_template('grade_infos.html', query_result=query_result, user_info=user_info, results=results)
+    
+    # 获取所有学生学号，用于下拉框
+    sql_students = "SELECT student_id, student_name FROM students_infos ORDER BY student_id"
+    cursor.execute(sql_students)
+    students = cursor.fetchall()
+    
+    # 处理分页
+    page = flask.request.args.get('page', 1, type=int)
+    per_page = 10  # 每页显示10条数据
+    offset = (page - 1) * per_page
+    
+    # 处理搜索条件，无论是GET还是POST请求
+    student_id = flask.request.values.get("student_id", "")
+    course_id = flask.request.values.get("course_id", "")
+    grade_range = flask.request.values.get("grade_range", "")
+    
+    # 构建搜索SQL
+    sql_search = """SELECT gi.student_id, gi.student_class_id, gi.grade, si.student_name, si.student_class
+                   FROM grade_infos gi
+                   LEFT JOIN students_infos si ON gi.student_id = si.student_id
+                   WHERE 1=1"""
+    params = []
+    
+    if student_id:
+        sql_search += " AND gi.student_id = %s"
+        params.append(student_id)
+    
+    if course_id:
+        sql_search += " AND gi.student_class_id LIKE %s"
+        params.append(f"%{course_id}%")
+    
+    if grade_range:
+        if grade_range == "<60":
+            sql_search += " AND gi.grade < 60"
+        elif grade_range == "<80":
+            sql_search += " AND gi.grade >= 60 AND gi.grade < 80"
+        elif grade_range == "<90":
+            sql_search += " AND gi.grade >= 80 AND gi.grade < 90"
+        elif grade_range == ">=90":
+            sql_search += " AND gi.grade >= 90"
+    
+    # 获取总记录数
+    sql_count = sql_search.replace("SELECT gi.student_id, gi.course_id, gi.grade, si.student_name, si.student_class", "SELECT COUNT(*)")
+    cursor.execute(sql_count, params)
+    total = int(cursor.fetchone()[0])
+    
+    # 执行搜索或显示所有数据
+    sql_search += " LIMIT %s OFFSET %s"
+    params.extend([per_page, offset])
+    cursor.execute(sql_search, params)
+    results = cursor.fetchall()
+    
+    # 计算总页数
+    total_pages = (total + per_page - 1) // per_page
+    
+    # 准备返回的搜索条件，用于保留搜索信息
+    search_conditions = {
+        'student_id': student_id,
+        'course_id': course_id,
+        'grade_range': grade_range
+    }
+    
+    return flask.render_template(
+        'grade_infos.html', 
+        user_info=user_info, 
+        results=results, 
+        students=students,
+        student_id=student_id,
+        course_id=course_id,
+        grade_range=grade_range,
+        page=page, 
+        per_page=per_page, 
+        total_pages=total_pages, 
+        total=total
+    )
 
 
 @app.route('/adminstator', methods=['GET', "POST"])
