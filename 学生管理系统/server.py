@@ -660,8 +660,9 @@ def grade_infos():
     params = []
     
     if student_id:
-        sql_search += " AND gi.student_id = %s"
+        sql_search += " AND (gi.student_id = %s OR si.student_name LIKE %s)"
         params.append(student_id)
+        params.append(f"%{student_id}%")
     
     if course_id:
         sql_search += " AND gi.student_class_id LIKE %s"
@@ -678,7 +679,7 @@ def grade_infos():
             sql_search += " AND gi.grade >= 90"
     
     # 获取总记录数
-    sql_count = sql_search.replace("SELECT gi.student_id, gi.course_id, gi.grade, si.student_name, si.student_class", "SELECT COUNT(*)")
+    sql_count = sql_search.replace("SELECT gi.student_id, gi.student_class_id, gi.grade, si.student_name, si.student_class", "SELECT COUNT(*)")
     cursor.execute(sql_count, params)
     total = int(cursor.fetchone()[0])
     
