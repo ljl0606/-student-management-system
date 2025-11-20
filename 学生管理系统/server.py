@@ -660,8 +660,9 @@ def grade_infos():
     params = []
     
     if student_id:
-        sql_search += " AND gi.student_id = %s"
+        sql_search += " AND (gi.student_id = %s OR si.student_name LIKE %s)"
         params.append(student_id)
+        params.append(f"%{student_id}%")
     
     if course_id:
         sql_search += " AND gi.student_class_id LIKE %s"
