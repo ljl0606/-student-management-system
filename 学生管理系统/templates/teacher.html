@@ -53,11 +53,38 @@
                     <tr>
                         <form action="" method="post" onsubmit="return handleSubmit()">
                             <td><input class="long" name="student_id" type="text" />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
-                            <td><input class="long" name="student_class_id" type="text" />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                            <td>
+                                <select name="teacher1" id="teacher1" onchange="updateCourses(1)">
+                                    <option value="">请选择老师</option>
+                                    {% for teacher in teachers %}
+                                    <option value="{{ teacher[0] }}">{{ teacher[0] }}</option>
+                                    {% endfor %}
+                                </select>
+                                <select name="student_class_id" id="course1">
+                                    <option value="">请选择课程</option>
+                                </select>
                             </td>
-                            <td><input class="long" name="student_class_id2" type="text" />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                            <td>
+                                <select name="teacher2" id="teacher2" onchange="updateCourses(2)">
+                                    <option value="">请选择老师</option>
+                                    {% for teacher in teachers %}
+                                    <option value="{{ teacher[0] }}">{{ teacher[0] }}</option>
+                                    {% endfor %}
+                                </select>
+                                <select name="student_class_id2" id="course2">
+                                    <option value="">请选择课程</option>
+                                </select>
                             </td>
-                            <td><input class="long" name="student_class_id3" type="text" />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                            <td>
+                                <select name="teacher3" id="teacher3" onchange="updateCourses(3)">
+                                    <option value="">请选择老师</option>
+                                    {% for teacher in teachers %}
+                                    <option value="{{ teacher[0] }}">{{ teacher[0] }}</option>
+                                    {% endfor %}
+                                </select>
+                                <select name="student_class_id3" id="course3">
+                                    <option value="">请选择课程</option>
+                                </select>
                             </td>
                             <td><input class="last" type="submit" value="提交" />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
                             <td><span>提交结果:{{insert_result}}</span></td>
@@ -85,6 +112,46 @@
         </div>
     </div>
 </div>
+<script>
+    // 教师课程映射
+    var teacherCourseMap = {{ teacher_course_map | tojson }};
+    
+    // 更新课程下拉框
+    function updateCourses(index) {
+        var teacherSelect = document.getElementById('teacher' + index);
+        var courseSelect = document.getElementById('course' + index);
+        var selectedTeacher = teacherSelect.value;
+        
+        // 清空课程下拉框
+        courseSelect.innerHTML = '<option value="">请选择课程</option>';
+        
+        // 如果选择了教师，则添加对应的课程
+        if (selectedTeacher && teacherCourseMap[selectedTeacher]) {
+            var courses = teacherCourseMap[selectedTeacher];
+            for (var i = 0; i < courses.length; i++) {
+                if (courses[i]) {
+                    var option = document.createElement('option');
+                    option.value = courses[i];
+                    option.textContent = courses[i];
+                    courseSelect.appendChild(option);
+                }
+            }
+        }
+    }
+    
+    // 表单提交处理
+    function handleSubmit() {
+        // 确保每个课程都已选择
+        for (var i = 1; i <= 3; i++) {
+            var courseSelect = document.getElementById('course' + i);
+            if (!courseSelect.value) {
+                alert('请选择第' + i + '门课程');
+                return false;
+            }
+        }
+        return true;
+    }
+</script>
 </body>
 
 </html>

@@ -1,13 +1,12 @@
 import re  # 引入正则表达式对用户输入进行限制
 import flask
 import pymysql  # 连接数据库
-from urllib.parse import quote as url_quote
 
 
 # 初始化
 app = flask.Flask(__name__)
 # 使用pymysql.connect方法连接本地mysql数据库
-db = pymysql.connect(host='127.0.0.1', port=3306, user='root',
+db = pymysql.connect(host='192.168.6.88', port=3306, user='root',
                      password='123456', database='student', charset='utf8')
 # 操作数据库，获取db下的cursor对象
 cursor = db.cursor()
@@ -168,6 +167,19 @@ def teacher():
         sql_list = "select * from students_decision_infos"
         cursor.execute(sql_list)
         results = cursor.fetchall()
+        # 获取所有教师信息
+        sql_teachers = "select teacher_id from techer_class_infos"
+        cursor.execute(sql_teachers)
+        teachers = cursor.fetchall()
+        # 获取所有课程信息
+        sql_courses = "select * from techer_class_infos"
+        cursor.execute(sql_courses)
+        courses = cursor.fetchall()
+        # 构建教师和课程的对应关系
+        teacher_course_map = {}
+        for course in courses:
+            teacher_id = course[0]
+            teacher_course_map[teacher_id] = course[1:]
     if flask.request.method == 'POST':
         # 获取输入的学生选课信息
         student_id = flask.request.values.get("student_id", "")
@@ -195,7 +207,7 @@ def teacher():
         sql_list = "select * from students_decision_infos"
         cursor.execute(sql_list)
         results = cursor.fetchall()
-    return flask.render_template('teacher.html', insert_result=insert_result, user_info=user_info, results=results)
+    return flask.render_template('teacher.html', insert_result=insert_result, user_info=user_info, results=results, teachers=teachers, teacher_course_map=teacher_course_map)
 
 
 @app.route('/grade', methods=['GET', "POST"])
